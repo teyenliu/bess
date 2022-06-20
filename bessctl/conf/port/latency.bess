@@ -34,11 +34,14 @@ import time
 v = VPort(loopback=1, rxq_cpus=[1])
 pkt = bytes(scapy.Ether()/scapy.IP()/scapy.UDP()/'hello world!')
 
-s::Source() -> Rewrite(templates=[pkt]) -> Timestamp() -> PortOut(port=v.name)
+s::Source() -> Rewrite(templates=[pkt]) -> \
+  Timestamp() -> RandomUpdate(fields=[{'offset': 2, 'size': 4, 'min': 1, 'max': 6}]) -> \
+  Timestamp() -> PortOut(port=v.name)
+
 PortInc(port=v.name) -> m::Measure() -> Sink()
 
 bess.add_tc('pktgen', policy='rate_limit',
-            resource='packet', limit={'packet': 1500000})
+            resource='packet', limit={'packet': 150000})
 s.attach_task('pktgen')
 
 start_time = time.time()
@@ -69,13 +72,29 @@ while True:
           (ret.timestamp - start_time,
            diff_pkts / 1e6,
            diff_bits / 1e6,
-           ret.latency.avg_ns / 1e3,
-           ret.latency.min_ns / 1e3,
-           ret.latency.percentile_values_ns[0] / 1e3,
-           ret.latency.percentile_values_ns[1] / 1e3,
-           ret.latency.max_ns / 1e3,
-           ret.jitter.avg_ns / 1e3,
-           ret.jitter.min_ns / 1e3,
-           ret.jitter.percentile_values_ns[0] / 1e3,
-           ret.jitter.percentile_values_ns[1] / 1e3,
-           ret.jitter.max_ns / 1e3))
+           ret.latency.avg_ns,
+           ret.latency.min_ns,
+           ret.latency.percentile_values_ns[0],
+           ret.latency.percentile_values_ns[1],
+           ret.latency.max_ns,
+           ret.jitter.avg_ns,
+           ret.jitter.min_ns,
+           ret.jitter.percentile_values_ns[0],
+           ret.jitter.percentile_values_ns[1],
+           ret.jitter.max_ns))
+    
+    #print('%12.6f: %5.3f Mpps, %8.3f Mbps, ' \
+    #      '%7.3f %6.1f %6.1f %6.1f %8.1f   %7.3f %6.1f %6.1f %6.1f %8.1f' %
+    #      (ret.timestamp - start_time,
+    #       diff_pkts / 1e6,
+    #       diff_bits / 1e6,
+    #       ret.latency.avg_ns / 1e3,
+    #       ret.latency.min_ns / 1e3,
+    #       ret.latency.percentile_values_ns[0] / 1e3,
+    #       ret.latency.percentile_values_ns[1] / 1e3,
+    #       ret.latency.max_ns / 1e3,
+    #       ret.jitter.avg_ns / 1e3,
+    #       ret.jitter.min_ns / 1e3,
+    #       ret.jitter.percentile_values_ns[0] / 1e3,
+    #       ret.jitter.percentile_values_ns[1] / 1e3,
+    #       ret.jitter.max_ns / 1e3))
